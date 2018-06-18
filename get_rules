@@ -1,0 +1,3 @@
+#!/bin/bash
+# get only the LHS and RHSes of rules: no alignment or feature scores
+exec cut -f1-3
