@@ -1,0 +1,47 @@
+#!/bin/bash
+
+sort_parallelism=4
+unstrict=
+if [[ $1 = "--unstrict" ]]; then
+  unstrict=yes
+  shift
+fi
+
+gold=$1
+testing=$2
+
+if [[ ! -f "$gold" ]] || [[ ! -f "$testing" ]]; then
+  printf "usage: paradigm <gold grammar> <test grammar>\n" >&2
+  exit 1
+fi
+
+mycat() {
+  if [[ $1 = *.gz ]]; then
+    zcat "$1"
+  else
+    cat "$1"
+  fi | ./unbar | ./get_rules | if [[ -n "$unstrict" ]]; then
+    ./unstrict
+  else
+    cat
+  fi | sort --parallel="$sort_parallelism" | uniq
+}
+
+comm --output-delimiter='|' <(mycat "$gold") <(mycat "$testing") \
+  | awk -F'|' '
+$1 != "" {
+  gold++;
+}
+$2 != "" {
+  testing++;
+}
+$3 != "" {
+  gold++;
+  testing++;
+  both++;
+}
+END {
+  prec = both / gold;
+  recall = both / testing;
+  printf "%d\t%d\t%d\t%f\t%f\n", gold, testing, both, prec, recall;
+}'
